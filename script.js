@@ -1,16 +1,51 @@
-let modoVarredura = "quick";
-let ameacasCount = 0;
-let quarentenaLista = [];
+// --- SINTETIZADOR DE ÁUDIO (Web Audio API) ---
+class AudioEngine {
+    constructor() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
 
-// Canvas - Monitor de Desempenho
+    playBeep(freq = 440, type = 'sine', duration = 0.1) {
+        if (!document.getElementById('toggle-sound').checked) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.00001, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    }
+
+    playAlert() {
+        this.playBeep(880, 'sawtooth', 0.15);
+        setTimeout(() => this.playBeep(440, 'sawtooth', 0.2), 150);
+    }
+}
+
+const audio = new AudioEngine();
+
+// --- ESTADO GLOBAL DA APLICAÇÃO ---
+let modoVarredura = "quick";
+let ameacasCount = parseInt(localStorage.getItem('cs_threats')) || 0;
+let arquivosAnalisadosTotal = parseInt(localStorage.getItem('cs_files')) || 0;
+let quarentenaLista = JSON.parse(localStorage.getItem('cs_quarantine')) || [];
+
+document.getElementById('threats-count').textContent = ameacasCount;
+document.getElementById('files-count').textContent = arquivosAnalisadosTotal;
+
+// --- CANVAS: DESEMPENHO EM TEMPO REAL ---
 const canvas = document.getElementById("perfChart");
 const ctx = canvas.getContext("2d");
-let dataPoints = Array(20).fill(10);
+let dataPoints = Array(25).fill(10);
 
 function desenharGrafico() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.beginPath();
-    ctx.strokeStyle = "#38bdf8";
+    ctx.strokeStyle = "#00f0ff";
     ctx.lineWidth = 2;
 
     const step = canvas.width / (dataPoints.length - 1);
@@ -29,12 +64,14 @@ setInterval(() => {
     dataPoints.shift();
     dataPoints.push(novoValor);
     desenharGrafico();
-}, 500);
+}, 400);
 
-// NAVEGAÇÃO DE ABAS
+// --- GERENCIADOR DE ABAS ---
 document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         e.preventDefault();
+        audio.playBeep(600, 'sine', 0.05);
+
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
 
@@ -44,19 +81,20 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     });
 });
 
-// NOTIFICAÇÕES TOAST
+// --- TOAST NOTIFICATIONS ---
 function mostrarToast(mensagem, tipo = "info") {
     const container = document.getElementById("toast-container");
     const toast = document.createElement("div");
     toast.className = "toast";
     toast.textContent = mensagem;
     container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3500);
+    setTimeout(() => toast.remove(), 4000);
 }
 
-// MODO DE ESCANEAMENTO
+// --- TIPOS DE ESCANEAMENTO ---
 document.querySelectorAll('.scan-type-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
+        audio.playBeep(700, 'sine', 0.05);
         document.querySelectorAll('.scan-type-btn').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         modoVarredura = e.target.getAttribute('data-type');
@@ -72,8 +110,9 @@ function adicionarLog(texto, tipo = "") {
     log.scrollTop = log.scrollHeight;
 }
 
-// SISTEMA DE VARREDURA
+// --- ESCANEAMENTO ---
 function iniciarVarredura() {
+    audio.playBeep(523, 'triangle', 0.2);
     const btn = document.getElementById("scan-btn");
     const progressBar = document.getElementById("progress-bar");
     const percentText = document.getElementById("progress-percent");
@@ -87,28 +126,36 @@ function iniciarVarredura() {
     threatAlert.classList.add("hidden");
 
     let progresso = 0;
-    let arquivos = 0;
+    let arquivosSessao = 0;
 
-    adicionarLog(`Iniciando varredura [${modoVarredura.toUpperCase()}]`);
+    adicionarLog(`Iniciando varredura heurística [${modoVarredura.toUpperCase()}]`);
 
     const intervalo = setInterval(() => {
-        progresso += 10;
-        arquivos += Math.floor(Math.random() * 30) + 10;
+        progresso += 5;
+        arquivosSessao += Math.floor(Math.random() * 40) + 10;
+        arquivosAnalisadosTotal += arquivosSessao;
+        
+        localStorage.setItem('cs_files', arquivosAnalisadosTotal);
+        document.getElementById("files-count").textContent = arquivosAnalisadosTotal;
 
         progressBar.style.width = progresso + "%";
         percentText.textContent = progresso + "%";
-        document.getElementById("files-count").textContent = arquivos;
 
         if (progresso === 50 && modoVarredura === "full") {
+            audio.playAlert();
             ameacasCount++;
+            localStorage.setItem('cs_threats', ameacasCount);
             document.getElementById("threats-count").textContent = ameacasCount;
+            
             document.getElementById("system-status").textContent = "Ameaça Detectada";
             document.getElementById("system-status").className = "stat-value threat";
+            
             threatAlert.classList.remove("hidden");
-            adicionarLog("ALERTA: Trojan.Win32.Injector localizado!", "danger");
-            mostrarToast("⚠️ Ameaça encontrada no sistema!", "danger");
+            adicionarLog("ALERTA: Arquivo malicioso identificado!", "danger");
+            mostrarToast("⚠️ Ameaça Crítica Detectada!", "danger");
         } else {
-            adicionarLog(`Escanear arquivo: ${Math.random().toString(36).substring(7)}.dll`);
+            audio.playBeep(1200, 'sine', 0.02);
+            adicionarLog(`Analisando setor de memória: 0x${Math.floor(Math.random() * 0xFFFFFF).toString(16)}`);
         }
 
         if (progresso >= 100) {
@@ -117,33 +164,37 @@ function iniciarVarredura() {
             btn.disabled = false;
             
             if (modoVarredura === "quick") {
+                audio.playBeep(800, 'sine', 0.3);
                 document.getElementById("system-status").textContent = "Protegido";
                 document.getElementById("system-status").className = "stat-value safe";
-                adicionarLog("Varredura concluída. Nenhum problema encontrado.", "success");
-                mostrarToast("Escaneamento concluído: Sistema Seguro.");
+                adicionarLog("Varredura concluída. Sistema seguro.", "success");
+                mostrarToast("Escaneamento concluído: 0 ameaças.");
             }
         }
-    }, 200);
+    }, 150);
 }
 
-// GERENCIADOR DE QUARENTENA
+// --- QUARENTENA E PERSISTÊNCIA ---
 function moverParaQuarentena() {
+    audio.playBeep(900, 'triangle', 0.15);
     document.getElementById("threat-alert").classList.add("hidden");
     
     const item = {
         id: Date.now(),
         nome: "payload_malware.exe",
-        ameaca: "Trojan.Win32.Injector",
+        ameaca: "Trojan.Win32.Heuristic",
         data: new Date().toLocaleTimeString()
     };
 
     quarentenaLista.push(item);
+    localStorage.setItem('cs_quarantine', JSON.stringify(quarentenaLista));
+    
     atualizarTabelaQuarentena();
     
     document.getElementById("system-status").textContent = "Protegido";
     document.getElementById("system-status").className = "stat-value safe";
-    adicionarLog("Ameaça isolada e enviada à quarentena.", "success");
-    mostrarToast("Arquivo enviado para a Quarentena.");
+    adicionarLog("Ameaça neutralizada e isolada.", "success");
+    mostrarToast("Arquivo movido para a Quarentena.");
 }
 
 function atualizarTabelaQuarentena() {
@@ -151,7 +202,7 @@ function atualizarTabelaQuarentena() {
     document.getElementById("badge-quarantine").textContent = quarentenaLista.length;
 
     if (quarentenaLista.length === 0) {
-        tbody.innerHTML = `<tr id="empty-quarantine"><td colspan="4" style="text-align:center; color: var(--text-secondary);">Nenhum arquivo na quarentena.</td></tr>`;
+        tbody.innerHTML = `<tr id="empty-quarantine"><td colspan="4" style="text-align:center; color: var(--text-secondary);">Nenhum arquivo em quarentena no momento.</td></tr>`;
         return;
     }
 
@@ -160,10 +211,10 @@ function atualizarTabelaQuarentena() {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${item.nome}</td>
-            <td style="color: var(--accent-red);">${item.ameaca}</td>
+            <td style="color: var(--accent-red); font-weight: bold;">${item.ameaca}</td>
             <td>${item.data}</td>
             <td>
-                <button class="action-btn delete" onclick="excluirAmeaca(${item.id})">Excluir</button>
+                <button class="action-btn" onclick="excluirAmeaca(${item.id})">Excluir</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -171,21 +222,29 @@ function atualizarTabelaQuarentena() {
 }
 
 function excluirAmeaca(id) {
+    audio.playBeep(300, 'sawtooth', 0.1);
     quarentenaLista = quarentenaLista.filter(item => item.id !== id);
+    localStorage.setItem('cs_quarantine', JSON.stringify(quarentenaLista));
     atualizarTabelaQuarentena();
-    mostrarToast("Arquivo excluído permanentemente.");
+    mostrarToast("Ameaça removida do disco.");
 }
 
-// TOGGLE DE PROTEÇÃO
+// --- CONTROLE DE PROTEÇÃO ---
 function toggleShield(checkbox) {
+    audio.playBeep(500, 'sine', 0.1);
     const badge = document.getElementById("shield-badge");
+    const badgeText = document.getElementById("shield-badge-text");
+
     if (checkbox.checked) {
         badge.className = "shield-status-badge";
-        badge.innerHTML = `<span class="status-dot"></span> Proteção Ativa`;
-        mostrarToast("Proteção em Tempo Real Ativada.");
+        badgeText.textContent = "Proteção Ativa";
+        mostrarToast("Escudo de Proteção Ativado.");
     } else {
         badge.className = "shield-status-badge disabled";
-        badge.innerHTML = `<span class="status-dot"></span> Proteção Desativada`;
-        mostrarToast("Aviso: Proteção Desativada!");
+        badgeText.textContent = "Proteção Desativada";
+        mostrarToast("Aviso: O sistema está vulnerável!");
     }
 }
+
+// Carregar Quarentena Inicial
+atualizarTabelaQuarentena();
