@@ -1,1 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberShield Security Engine Ultra</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
 
+    <div id="toast-container"></div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-shield-halved logo-icon"></i>
+                <h2>Cyber<span>Shield</span></h2>
+            </div>
+            <nav>
+                <a href="#" class="nav-btn active" data-tab="tab-dashboard"><i class="fa-solid fa-chart-pie"></i> Visão Geral</a>
+                <a href="#" class="nav-btn" data-tab="tab-scanner"><i class="fa-solid fa-magnifying-glass-chart"></i> Escanear</a>
+                <a href="#" class="nav-btn" data-tab="tab-quarantine"><i class="fa-solid fa-box-archive"></i> Quarentena (<span id="badge-quarantine">0</span>)</a>
+                <a href="#" class="nav-btn" data-tab="tab-settings"><i class="fa-solid fa-sliders"></i> Configurações</a>
+            </nav>
+            <div class="sidebar-footer">
+                <p>Versão v4.2.0-PRO</p>
+                <small>Engine: Active 2026</small>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div>
+                    <h1 id="page-title">Central de Segurança</h1>
+                    <p id="page-desc">Proteção heurística em tempo real e análise comportamental</p>
+                </div>
+                <div class="shield-status-badge" id="shield-badge">
+                    <span class="status-dot"></span> <span id="shield-badge-text">Proteção Ativa</span>
+                </div>
+            </header>
+
+            <div id="tab-dashboard" class="tab-content active">
+                <section class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fa-solid fa-shield-cat"></i></div>
+                        <div>
+                            <span class="stat-title">Status Global</span>
+                            <span id="system-status" class="stat-value safe">Protegido</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fa-solid fa-file-code"></i></div>
+                        <div>
+                            <span class="stat-title">Arquivos Analisados</span>
+                            <span id="files-count" class="stat-value">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fa-solid fa-bug"></i></div>
+                        <div>
+                            <span class="stat-title">Ameaças Bloqueadas</span>
+                            <span id="threats-count" class="stat-value threat">0</span>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="dashboard-grid">
+                    <section class="card perf-section">
+                        <h3><i class="fa-solid fa-microchip"></i> Telemetria de Recursos (CPU / Rede)</h3>
+                        <canvas id="perfChart" width="500" height="180"></canvas>
+                    </section>
+
+                    <section class="card">
+                        <h3><i class="fa-solid fa-layer-group"></i> Módulos de Defesa</h3>
+                        <ul class="module-list">
+                            <li><span><i class="fa-solid fa-hard-drive"></i> Proteção em Disco</span> <strong class="text-green">Ativo</strong></li>
+                            <li><span><i class="fa-solid fa-network-wired"></i> Firewall Heurístico</span> <strong class="text-green">Ativo</strong></li>
+                            <li><span><i class="fa-solid fa-globe"></i> Anti-Phishing Web</span> <strong class="text-green">Ativo</strong></li>
+                            <li><span><i class="fa-solid fa-lock"></i> Escudo Anti-Ransomware</span> <strong class="text-green">Ativo</strong></li>
+                        </ul>
+                    </section>
+                </div>
+            </div>
+
+            <div id="tab-scanner" class="tab-content">
+                <section class="card scan-section">
+                    <h3>Selecione a Profundidade do Escaneamento</h3>
+                    <div class="btn-group">
+                        <button class="scan-type-btn active" data-type="quick"><i class="fa-solid fa-bolt"></i> Rápida (Limpo)</button>
+                        <button class="scan-type-btn" data-type="full"><i class="fa-solid fa-radar"></i> Profunda (Simular Ameaça)</button>
+                    </div>
+
+                    <div class="radar-container">
+                        <div id="radar-circle" class="radar-circle">
+                            <div class="radar-sweep"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-wrapper">
+                        <div class="progress-info">
+                            <span id="scan-label">Aguardando comando do operador...</span>
+                            <span id="progress-percent">0%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div id="progress-bar" class="progress-bar-fill"></div>
+                        </div>
+                    </div>
+
+                    <button id="scan-btn" onclick="iniciarVarredura()"><i class="fa-solid fa-play"></i> Iniciar Escaneamento do Sistema</button>
+                </section>
+
+                <div id="threat-alert" class="threat-alert hidden">
+                    <div class="alert-content">
+                        <i class="fa-solid fa-triangle-exclamation alert-icon"></i>
+                        <div>
+                            <strong>AMEAÇA CRÍTICA DETECTADA!</strong>
+                            <p id="threat-name" class="threat-title">Trojan.Win32.Heuristic.Injector</p>
+                            <small id="threat-path">C:/Users/Public/AppData/Local/Temp/payload.exe</small>
+                        </div>
+                    </div>
+                    <button class="btn-danger" onclick="moverParaQuarentena()"><i class="fa-solid fa-box-diagnostic"></i> Isolar na Quarentena</button>
+                </div>
+
+                <section class="card terminal-section">
+                    <h3><i class="fa-solid fa-terminal"></i> Log Operacional em Tempo Real</h3>
+                    <div id="terminal-log" class="terminal-body">
+                        <p class="log-line">[SYSTEM] Módulo de varredura pronto.</p>
+                    </div>
+                </section>
+            </div>
+
+            <div id="tab-quarantine" class="tab-content">
+                <section class="card">
+                    <h3><i class="fa-solid fa-vault"></i> Bóveda de Isolamento (Quarentena)</h3>
+                    <p class="section-desc">Arquivos nesta área estão criptografados e impedidos de executar instruções no sistema.</p>
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Arquivo</th>
+                                <th>Assinatura Maliciosa</th>
+                                <th>Data de Isolamento</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="quarantine-tbody">
+                            <tr id="empty-quarantine">
+                                <td colspan="4" style="text-align:center; color: var(--text-secondary);">Nenhum arquivo em quarentena no momento.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
+            <div id="tab-settings" class="tab-content">
+                <section class="card settings-card">
+                    <h3><i class="fa-solid fa-gears"></i> Preferências de Segurança</h3>
+                    <div class="setting-item">
+                        <div>
+                            <strong>Proteção em Tempo Real</strong>
+                            <p>Monitora a leitura e escrita de arquivos em tempo de execução</p>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-realtime" checked onchange="toggleShield(this)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <strong>Efeitos Sonoros (Audio API)</strong>
+                            <p>Sintetiza efeitos de áudio durante operações do sistema</p>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-sound" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
